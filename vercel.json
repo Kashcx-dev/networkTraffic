@@ -1,0 +1,7 @@
+{
+    "functions": {
+        "api/speedtest.js": {
+            "maxDuration": 30
+        }
+    }
+}
