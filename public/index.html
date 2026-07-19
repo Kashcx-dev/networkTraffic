@@ -186,25 +186,32 @@
                     statusText = 'Poor';
                 }
 
-                // 3. Show results
+                // 3. Show only speed and quality on screen
                 resultsDiv.innerHTML = `
                     <div class="result-item"><strong>Download Speed:</strong> ${data.speedMbps} Mbps</div>
-                    <div class="result-item"><strong>Data Downloaded:</strong> ${data.downloadedMB} MB</div>
-                    <div class="result-item"><strong>Connection Type:</strong> ${stability.toUpperCase()}</div>
                     <div class="result-item"><strong>Network Quality:</strong> <span class="${statusClass}">${statusText}</span></div>
                 `;
                 resultsDiv.style.display = 'block';
 
-                // 4. Send results to backend to save in Google Sheets
+                // 4. Gather extra metrics silently for Google Sheets
+                const conn = navigator.connection || {};
+                const extraMetrics = {
+                    name: name,
+                    speedMbps: data.speedMbps,
+                    downloadedMB: data.downloadedMB,
+                    duration: data.duration,
+                    connectionType: conn.effectiveType || 'Unknown',
+                    rtt: conn.rtt || 'N/A',
+                    downlinkEstimate: conn.downlink || 'N/A',
+                    dataSaver: conn.saveData ? 'Yes' : 'No',
+                    platform: navigator.platform || 'Unknown',
+                    userAgent: navigator.userAgent || 'Unknown'
+                };
+
                 fetch('/api/speedtest', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: name,
-                        speedMbps: data.speedMbps,
-                        downloadedMB: data.downloadedMB,
-                        duration: data.duration
-                    })
+                    body: JSON.stringify(extraMetrics)
                 }).catch(() => {});
 
             } catch (error) {

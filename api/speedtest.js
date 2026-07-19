@@ -33,13 +33,24 @@ function sendToGoogleSheets(data) {
     });
 }
 
-// Vercel serverless function - just saves results, no speed test
+// Vercel serverless function - receives results and saves to Google Sheets
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { name, speedMbps, downloadedMB, duration } = req.body || {};
+    const {
+        name,
+        speedMbps,
+        downloadedMB,
+        duration,
+        connectionType,
+        rtt,
+        downlinkEstimate,
+        dataSaver,
+        platform,
+        userAgent
+    } = req.body || {};
 
     if (!name || !speedMbps) {
         return res.status(400).json({ error: 'Name and speed data are required' });
@@ -57,9 +68,15 @@ module.exports = async (req, res) => {
             name,
             timestamp,
             speedMbps,
+            quality,
             downloadedMB,
             duration,
-            quality
+            connectionType: connectionType || 'Unknown',
+            rtt: rtt || 'N/A',
+            downlinkEstimate: downlinkEstimate || 'N/A',
+            dataSaver: dataSaver || 'No',
+            platform: platform || 'Unknown',
+            userAgent: userAgent || 'Unknown'
         });
 
         return res.status(200).json({ status: 'ok', quality });
