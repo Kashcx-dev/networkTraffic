@@ -115,15 +115,35 @@
     <div class="container">
         <h1>Network Check</h1>
         <p>Enter your name and click Proceed to test your connection.</p>
-        
+
         <input type="text" id="nameInput" placeholder="Your Name" />
         <div id="loader" class="loader"></div>
         <button id="proceedBtn">Proceed</button>
-        
+
         <div id="results"></div>
     </div>
 
     <script>
+        // Speed test runs IN THE BROWSER so it measures the visitor's actual connection
+        async function runSpeedTest() {
+            const downloadUrl = 'https://speed.cloudflare.com/__down?bytes=25000000';
+            const startTime = performance.now();
+
+            const response = await fetch(downloadUrl, { cache: 'no-store' });
+            const blob = await response.blob();
+
+            const endTime = performance.now();
+            const durationInSeconds = (endTime - startTime) / 1000;
+            const bitsLoaded = blob.size * 8;
+            const speedMbps = (bitsLoaded / durationInSeconds / 1000000).toFixed(2);
+
+            return {
+                speedMbps: speedMbps,
+                duration: durationInSeconds.toFixed(2),
+                downloadedMB: (blob.size / 1024 / 1024).toFixed(2)
+            };
+        }
+
         document.getElementById('proceedBtn').addEventListener('click', async () => {
             const btn = document.getElementById('proceedBtn');
             const resultsDiv = document.getElementById('results');
@@ -144,18 +164,10 @@
             resultsDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/api/speedtest', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name })
-                });
+                // 1. Run speed test in the browser
+                const data = await runSpeedTest();
 
-                if (!response.ok) {
-                    throw new Error('Server returned an error');
-                }
-
-                const data = await response.json();
-
+                // 2. Determine quality
                 let stability = 'Unknown';
                 if (navigator.connection) {
                     stability = navigator.connection.effectiveType || 'Unknown';
@@ -174,6 +186,7 @@
                     statusText = 'Poor';
                 }
 
+                // 3. Show results
                 resultsDiv.innerHTML = `
                     <div class="result-item"><strong>Download Speed:</strong> ${data.speedMbps} Mbps</div>
                     <div class="result-item"><strong>Data Downloaded:</strong> ${data.downloadedMB} MB</div>
@@ -181,6 +194,19 @@
                     <div class="result-item"><strong>Network Quality:</strong> <span class="${statusClass}">${statusText}</span></div>
                 `;
                 resultsDiv.style.display = 'block';
+
+                // 4. Send results to backend to save in Google Sheets
+                fetch('/api/speedtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        speedMbps: data.speedMbps,
+                        downloadedMB: data.downloadedMB,
+                        duration: data.duration
+                    })
+                }).catch(() => {});
+
             } catch (error) {
                 resultsDiv.innerHTML = `
                     <div class="result-item status-poor"><strong>Error:</strong> Failed to reach the test server. You might be offline or experiencing severe packet loss.</div>
